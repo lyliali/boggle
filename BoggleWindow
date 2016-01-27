@@ -1,0 +1,426 @@
+import squint.*;
+import javax.swing.*;
+import java.awt.*;
+import java.util.Random;
+
+/*
+ * Class BoggleWindow handles starting and ending a solitaire or two-player game of Boggle.
+ *                    Includes methods to check if a word is valid, keep track of the score,
+ *                    keep track of the duration of a game, and communicate to the Boggle server.
+ * 
+ * Kate Latimore and Lylia Li, Monday afternoon
+ */
+public class BoggleWindow extends GUIManager
+{
+    // size of the program's window
+    private final int WINDOW_WIDTH = 800, WINDOW_HEIGHT = 700;
+
+    // displays the time remaining in the game
+    private JProgressBar timeRemaining;
+
+    // keeps track of the user's score
+    private int score;
+    private JLabel scoreLabel;
+
+    // displays the letters the user has clicked
+    private JLabel wordInProgress;
+
+    // Lexicon to check if words found are valid
+    private Lexicon dictionary = new Lexicon();
+
+    // displays the words the user has found, and the words the opponent
+    // has found if playing a 2-player game
+    private JTextArea wordsFound;
+    private final int TEXT_AREA_HEIGHT = 20;
+    private final int TEXT_AREA_WIDTH = 20;
+
+    // buttons to start game and end game
+    private JButton startGame = new JButton( "Start Game" );
+    private JButton endGame = new JButton( "End Game" );
+
+    // game grid
+    private BoggleBoard grid;
+
+    // text fields to input a user name and a group name
+    // in the event of a 2-player game
+    private JTextField usernameField;
+    private JTextField groupnameField;
+    private final int TEXT_FIELD_SIZE = 10;
+
+    // label that shows if the user is playing solitaire,
+    // or if the user is playing against another user
+    private JLabel playingLabel;
+
+    // NetConnection that will be used in a 2-player game
+    private NetConnection toServer;
+    // port number and url for the NetConnection
+    private final int PORT_NUMBER = 13415;
+    private final String SERVER_URL = "rath.cs.williams.edu";
+
+    // keeps track of the total game time, which is 180 seconds
+    private PaceMaker timer;
+    private final int GAME_LENGTH = 180;
+
+    // int to keep track of number of seconds remaining in the game
+    private int numberOfSeconds;
+
+    // keeps track of the words the opponent has found in a 2-player game
+    private WordsList opponentWords = new WordsList();
+
+    // the name of the opponent in a 2-player game
+    private String opponentName;
+
+    // keeps track of the opponent's score in a 2-player game
+    private int opponentScore;
+
+    // keeps track of the words the user has found
+    private WordsList myWords = new WordsList();
+
+    // make a larger font
+    private final float FONT_SIZE = 20;
+    private final Font titleFont = this.getFont().deriveFont( FONT_SIZE );
+    
+    // make a nicer shade of magenta
+    private Color magenta2 = Color.magenta.darker();
+
+    /*
+     * Constructor creates the main window
+     */
+    public BoggleWindow() {
+        // create window to hold all the components
+        this.createWindow( WINDOW_WIDTH, WINDOW_HEIGHT );
+
+        // make a BorderLayout to keep things neat
+        contentPane.setLayout( new BorderLayout() );
+
+        // mainPanel for progress bar, wordInProgress label, and scoreLabel
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout( new BorderLayout() );
+
+        // create a progress bar
+        timeRemaining = new JProgressBar( 0, GAME_LENGTH );
+        numberOfSeconds = GAME_LENGTH;
+        timeRemaining.setValue( numberOfSeconds );
+
+        // make the progress bar longer
+        Dimension prefSize = timeRemaining.getPreferredSize();
+        prefSize.width = WINDOW_WIDTH;
+        timeRemaining.setPreferredSize( prefSize );
+
+        // add the progress bar to the top of the main panel
+        mainPanel.add( timeRemaining, BorderLayout.NORTH );
+
+        // new panel for the wordInProgress label and scoreLabel
+        JPanel panel = new JPanel();
+        panel.setLayout( new GridLayout(1,2) );
+
+        wordInProgress = new JLabel( "", SwingConstants.CENTER );
+        wordInProgress.setFont( titleFont );
+        panel.add( wordInProgress );
+
+        scoreLabel = new JLabel( "SCORE:", SwingConstants.CENTER );
+        scoreLabel.setFont( titleFont );
+        panel.add( scoreLabel );
+
+        mainPanel.add( panel, BorderLayout.SOUTH );
+
+        contentPane.add( mainPanel, BorderLayout.NORTH );
+
+        // mainPanel for grid and wordsFound
+        mainPanel = new JPanel();
+        mainPanel.setLayout( new BorderLayout() );
+
+        // create a new BoggleBoard
+        grid = new BoggleBoard( this );
+
+        // add the BoggleBoard to the center of the main panel
+        mainPanel.add( grid, BorderLayout.CENTER );
+
+        // text area to display the words the user finds throughout the game
+        wordsFound = new JTextArea( TEXT_AREA_HEIGHT, TEXT_AREA_WIDTH );
+        wordsFound.setEditable( false );
+        JScrollPane wordsFound1 = new JScrollPane( wordsFound );
+
+        // add the text area to the right of the main panel
+        mainPanel.add( wordsFound1, BorderLayout.EAST );
+
+        contentPane.add( mainPanel, BorderLayout.CENTER );
+
+        // mainPanel for startGame and endGame buttons, playingLabel, and
+        // usernameField and groupnameField
+        mainPanel = new JPanel();
+        mainPanel.setLayout( new GridLayout(1,2) );
+
+        // new panel for startGame and endGame buttons
+        panel = new JPanel();
+        panel.setLayout( new GridLayout(2,1) );
+        panel.add( startGame );
+        panel.add( endGame );
+
+        mainPanel.add( panel );
+
+        // new panel for playingLabel, usernameField, and groupnameField
+        panel = new JPanel();
+        panel.setLayout( new GridLayout(3,1) );
+
+        // label to display if the user is playing solitaire
+        // or against someone else
+        playingLabel = new JLabel( "", SwingConstants.CENTER );
+        panel.add( playingLabel );
+
+        // text field for the user's name
+        JPanel miniPanel = new JPanel();
+        miniPanel.add( new JLabel( "Your name:" ) );
+        usernameField = new JTextField( TEXT_FIELD_SIZE );
+        miniPanel.add( usernameField );
+        panel.add( miniPanel );
+
+        // text field for the group name
+        miniPanel = new JPanel();
+        miniPanel.add( new JLabel( "Partner group:" ) );
+        groupnameField = new JTextField( TEXT_FIELD_SIZE );
+        miniPanel.add( groupnameField );
+        panel.add( miniPanel );
+
+        mainPanel.add( panel );
+
+        // add the buttons and text fields to the bottom of the contentPane
+        contentPane.add( mainPanel, BorderLayout.SOUTH );
+
+        // disable the end game button
+        endGame.setEnabled( false );
+    }
+
+    /*
+     * Methods to be executed if the startGame or endGame button is clicked
+     */
+    public void buttonClicked( JButton which ) {
+        if ( which == startGame ) {
+            // reset the score
+            score = 0;
+            scoreLabel.setText( "SCORE:" );
+            
+            // reset the wordInProgress label
+            wordInProgress.setText( "" );
+            wordInProgress.setForeground( magenta2 );
+
+            // update the status of the buttons
+            endGame.setEnabled( true );
+            startGame.setEnabled( false );
+
+            // reset the text area displaying words found
+            wordsFound.setText( "Words found:" );
+
+            // clear the list of words found
+            myWords = new WordsList();
+
+            // if the usernameField is empty, we are playing solitaire
+            if ( usernameField.getText().equals( "" ) ) {
+                // update the playing label and display the score label
+                playingLabel.setText( "Playing solitaire" );
+
+                // create a new BoggleBoard for play
+                grid.newBoard();
+
+                // start the timer
+                timer = new PaceMaker( 1, this );
+            } else {
+                // usernameField is not empty, so we want to start a 2-player game
+                // set up a NetConnection
+                toServer = new NetConnection( SERVER_URL, PORT_NUMBER );
+                toServer.addMessageListener( this );
+
+                // send PLAY command to server
+                toServer.out.println( "PLAY " + usernameField.getText() + " "
+                    + groupnameField.getText() );
+
+                // make a new list of words the opponent has found
+                opponentWords = new WordsList();
+
+                // initialize opponentScore
+                opponentScore = 0;
+                
+                // reset the board
+                grid.resetBoard();
+                
+                // display message looking for a user to play against
+                playingLabel.setText( "Searching..." );
+            }
+        }
+        else if ( which == endGame ) {
+            // update the status of the buttons
+            startGame.setEnabled( true );
+            endGame.setEnabled( false );
+
+            // stop and reset the timer
+            timer.stop();
+            numberOfSeconds = GAME_LENGTH;
+            timeRemaining.setValue( numberOfSeconds );
+
+            // disable all letter buttons
+            grid.disableButtons();
+
+            // if 2-player game, close the connection
+            if ( playingLabel.getText().contains( "against" ) )
+                toServer.close();
+            else
+                // reset wordInProgress label
+                wordInProgress.setText( "" );
+        }
+    }
+
+    /*
+     * Methods to be executed at every "tick" of the timer
+     */
+    public void tick( ) {
+        // decrease the number of seconds remaining in the game
+        numberOfSeconds = numberOfSeconds - 1;
+
+        // update the display of the JProgressBar
+        timeRemaining.setValue( numberOfSeconds );
+
+        // if the number of seconds remaining in the game is 0
+        // (time has run out), end the game
+        if ( numberOfSeconds == 0 ) {
+            endGame.doClick();
+        }
+    }
+
+    /*
+     * Method that handles a complete word that is sent to BoggleWindow 
+     * when the user has clicked a BoggleButton in the BoggleBoard twice
+     */
+    public void handle( String wordInQuestion ) {
+        // check if the word is longer than 2 letters
+        if ( wordInQuestion.length() > 2 ) {
+            // check if the word is valid by referring to the Lexicon   
+            if ( dictionary.contains( wordInQuestion ) ) {
+                // check if the word has already been found
+                if ( !myWords.contains( wordInQuestion ) ) {
+                    // add word to the list of words that have been found
+                    myWords = new WordsList( wordInQuestion, myWords );
+
+                    // update the score
+                    score = score + calculateScore( wordInQuestion );
+
+                    scoreLabel.setText( "SCORE: " + score );
+                }
+
+                // add word to text box of words that have been found
+                wordsFound.setText( "Words found:\n" + myWords.getWords() );
+
+                // if playing 2-player game, send WORD command to server
+                if ( playingLabel.getText().contains( "against" ) ) {
+                    toServer.out.println( "WORD " + wordInQuestion );
+                }
+            }
+        }
+    }
+
+    /*
+     * Calculates the number of points a word is worth
+     */
+    public int calculateScore( String wordInQuestion ) {
+        // according to the rules of Boggle,
+        // 3- or 4-letter words are worth 1 point,
+        // 5-letter words are worth 2 points,
+        // 6-letter words are worth 3 points,
+        // 7-letter words are worth 5 points,
+        // and 8-letter or longer words are worth 11 points.
+        if ( wordInQuestion.length() == 3 || wordInQuestion.length() == 4 )
+            return 1;
+        else if ( wordInQuestion.length() == 5 )
+            return 2;
+        else if ( wordInQuestion.length() == 6 )
+            return 3;
+        else if ( wordInQuestion.length() == 7 )
+            return 5;
+        else if ( wordInQuestion.length() >= 8 )
+            return 11;
+        else return 0;
+    }
+
+    /*
+     * Updates the JLabel that displays the letters the user has clicked
+     */
+    public void updateDisplay( String text ) {
+        wordInProgress.setText( text );
+    }
+
+    /*
+     * Methods to be executed when data comes in from the server
+     */
+    public void dataAvailable( ) {
+        String nextLine = toServer.in.nextLine();
+
+        if ( nextLine.startsWith( "START" ) ) {
+            // start the timer
+            timer = new PaceMaker( 1, this );
+            
+            // get the name of the opponent
+            opponentName = nextLine.substring( 6 ).trim();
+
+            // update the playingLabel
+            playingLabel.setText( "Playing against " + opponentName );
+
+            // interpret the next lines from the server to create the game board
+            for ( int x = 0; x < 4; x++ ) {
+                for ( int y = 0; y < 4; y ++ ) {
+                    // get the next line
+                    nextLine = toServer.in.nextLine();
+                    
+                    // assign letters from the server to buttons
+                    grid.updateButton( nextLine, x, y );
+                }
+            }
+            
+            // enable all letter buttons
+            grid.enableButtons();
+        }
+        else if ( nextLine.startsWith( "WORD" ) ) {
+            // get the word the opponent found
+            String foundWord = nextLine.substring( 5 ).trim();
+
+            // check that this is not a word that has already been found
+            if ( !opponentWords.contains( foundWord ) ) { 
+                // add it to the list containing the words the opponent has found
+                opponentWords = new WordsList( foundWord, opponentWords );
+
+                // update the opponent's score
+                opponentScore = opponentScore + calculateScore( foundWord );
+            }
+        }
+    }
+
+    /*
+     * Methods to be executed when the connection is closed
+     */
+    public void connectionClosed( ) {
+        // close the connection
+        toServer.close();
+
+        // end the game
+        endGame.doClick();
+
+        // display the words you found, the words the opponent found
+        // and the words the opponent found that you missed
+        wordsFound.setText( "Words found:\n" + myWords.getWords() + "\n\n\n"
+            + opponentName + "'s words:\n" + opponentWords.getWords() + "\n\n\n"
+            + "Words you missed:\n" + myWords.compareWords(opponentWords).getWords() );
+
+        // display the opponent's score
+        scoreLabel.setText( "SCORE: " + score + " vs. " + opponentScore );
+
+        // display who won the game
+        if ( score > opponentScore ) {
+            wordInProgress.setText( "YOU WIN!!!" );
+            wordInProgress.setForeground( Color.ORANGE );
+        } else if ( score < opponentScore ) {
+            wordInProgress.setText( "YOU LOSE :(" );
+            wordInProgress.setForeground( Color.BLUE );
+        } else if ( score == opponentScore ) {
+            wordInProgress.setText( "IT'S A TIE! :o" );
+            wordInProgress.setForeground( Color.GREEN );
+        }
+    }
+}
