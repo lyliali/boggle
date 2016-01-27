@@ -1,0 +1,256 @@
+import squint.*;
+import javax.swing.*;
+import java.awt.*;
+import java.util.Random;
+
+/*
+ * Class BoggleBoard handles the creation of a random board of letters
+ *                   at the start of a game of Boggle, and whether a sequence
+ *                   of clicks is valid according to the rules of the game.
+ * 
+ * Kate Latimore and Lylia Li, Monday afternoon
+ */
+public class BoggleBoard extends GUIManager
+{
+    // Random to pick random numbers to generate a random board
+    private Random numberChooser = new Random();
+
+    // array from which letters will be drawn to generate a random board
+    private String[][] cubeSides = new String[][]{
+            { "A", "A", "C", "I", "O", "T" },
+            { "A", "B", "I", "L", "T", "Y" },
+            { "A", "B", "J", "M", "O", "QU" },
+            { "A", "C", "D", "E", "M", "P" },
+            { "A", "C", "E", "L", "S", "R" },
+            { "A", "D", "E", "N", "V", "Z" },
+            { "A", "H", "M", "O", "R", "S" },
+            { "B", "F", "I", "O", "R", "X" },
+            { "D", "E", "N", "O", "S", "W" },
+            { "D", "K", "N", "O", "T", "U" },
+            { "E", "E", "F", "H", "I", "Y" },
+            { "E", "G", "I", "N", "T", "V" },
+            { "E", "G", "K", "L", "U", "Y" },
+            { "E", "H", "I", "N", "P", "S" },
+            { "E", "L", "P", "S", "T", "U" },
+            { "G", "I", "L", "R", "U", "W" }
+        };
+
+    // make a big font for the buttons!
+    private final float FONT_SIZE = 50;
+    private final Font bigFont = this.getFont().deriveFont( FONT_SIZE );
+
+    // make a nicer shade of magenta for the buttons!!
+    private Color magenta2 = Color.magenta.darker();
+
+    // 2d array of BoggleButtons to hold all of the buttons
+    private BoggleButton[][] board = new BoggleButton[4][4];
+
+    // instance variable to keep track of the last button that was clicked
+    private BoggleButton lastButtonClicked;
+
+    // String to keep track of the letters
+    // on the buttons that have been clicked
+    private String wordInProgress;
+
+    // BoggleWindow that this BoggleBoard is part of
+    private BoggleWindow currentWindow;
+
+    /*
+     * Constructor takes BoggleWindow as a parameter (so the
+     * handleWord method can be called when a word is completed)
+     */
+    public BoggleBoard( BoggleWindow window ) {
+        // set parameter to instance variable so it can be remembered
+        currentWindow = window;
+
+        // initialize wordInProgress
+        wordInProgress = "";
+
+        // creates a 4x4 grid to keep things neat
+        contentPane.setLayout( new GridLayout(4,4) );
+
+        // make all the buttons and fill the array
+        board[0][0] = new BoggleButton( "!", 0, 0 );
+        board[0][1] = new BoggleButton( "!", 0, 1 );
+        board[0][2] = new BoggleButton( "!", 0, 2 );
+        board[0][3] = new BoggleButton( "!", 0, 3 );
+
+        board[1][0] = new BoggleButton( "L", 1, 0 );
+        board[1][1] = new BoggleButton( "E", 1, 1 );
+        board[1][2] = new BoggleButton( "T", 1, 2 );
+        board[1][3] = new BoggleButton( "S", 1, 3 );
+
+        board[2][0] = new BoggleButton( "P", 2, 0 );
+        board[2][1] = new BoggleButton( "L", 2, 1 );
+        board[2][2] = new BoggleButton( "A", 2, 2 );
+        board[2][3] = new BoggleButton( "Y", 2, 3 );
+
+        board[3][0] = new BoggleButton( "!", 3, 0 );
+        board[3][1] = new BoggleButton( "!", 3, 1 );
+        board[3][2] = new BoggleButton( "!", 3, 2 );
+        board[3][3] = new BoggleButton( "!", 3, 3 );
+
+        // make the font on the buttons big and
+        // add the buttons to the content pane
+        for ( int x = 0; x < 4; x++ ) {
+            for ( int y = 0; y < 4; y++ ) {
+                board[x][y].setFont( bigFont );
+
+                board[x][y].setEnabled( false );
+
+                contentPane.add( board[x][y] );
+            }
+        }
+    }
+
+    /*
+     * Generates a new game board with random letters
+     */
+    public void newBoard() {
+        // keeps track of the number of rows that have been used
+        int rowsRemaining = 0;
+
+        for ( int x = 0; x < 4; x++ ) {
+            for ( int y = 0; y < 4; y++ ) {
+                // use the Random to generate random numbers
+                // that pick a row of cubeSides (cubeNumber)
+                // and a letter in that row (sideNumber) to get to a random letter
+                int cubeNumber = numberChooser.nextInt( 16 - rowsRemaining );
+                int sideNumber = numberChooser.nextInt( 6 );
+
+                // update the text on the button to that random letter
+                board[x][y].updateText( cubeSides[cubeNumber][sideNumber] );
+
+                board[x][y].setEnabled( true );
+
+                // exchange the elements of the chosen random row with
+                // the last row that has not yet been used
+                String[] pocket = cubeSides[cubeNumber];
+                cubeSides[cubeNumber] = cubeSides[ 15 - rowsRemaining ];
+                cubeSides[15 - rowsRemaining ] = pocket;
+
+                // increase the number of rows that have been used
+                rowsRemaining = rowsRemaining + 1;
+            }
+        }
+    }
+
+    /*
+     * This method handles clicks that are either valid or invalid
+     * Clicking a button adjacent to the last button clicked is valid,
+     * clicking a button that is not adjacent to the last button clicked or
+     * a button that has previously been clicked is not, and
+     * clicking the last button clicked twice signals a complete word
+     */
+    public void buttonClicked( JButton which ) {
+        // type cast to tell Java to treat the button clicked as a BoggleButton
+        BoggleButton whichLetter = (BoggleButton) which;
+
+        // methods to be executed in the case that this is the first button
+        // that has been clicked (start of a new sequence of clicks)
+        if ( lastButtonClicked == null ) {
+            // change the color of button, allowing us to keep track
+            // of which buttons have been clicked
+            // (clicked buttons should all be magenta)
+            whichLetter.setForeground( magenta2 );
+
+            // update the word that is being made by adding the letter
+            // of the clicked button to the string wordInProgress
+            wordInProgress = wordInProgress + whichLetter.getText();
+
+            // update lastButtonClicked to be the most recently clicked button
+            lastButtonClicked = whichLetter;
+
+            // update the JLabel in the BoggleWindow
+            currentWindow.updateDisplay( wordInProgress );
+        }
+        else if ( lastButtonClicked != null ) {
+            // if statement to check whether the click was valid
+            // if the last button clicked was clicked twice, this
+            // signals the completion of a word
+            if ( whichLetter == lastButtonClicked ) {
+                // send complete word to BoggleWindow to be handled
+                currentWindow.handle( wordInProgress );
+
+                // reset the board
+                resetBoard();
+
+                // update the JLabel in the BoggleWindow
+                currentWindow.updateDisplay( "" );                
+            }
+            // if the button clicked is not adjacent to the last button clicked
+            // or the button clicked has already been clicked,
+            // the click is invalid so we reset the word
+            else if ( !whichLetter.isAdjacent(lastButtonClicked)
+            || whichLetter.getForeground() == magenta2 ) {
+                // reset the board
+                resetBoard();
+
+                // update the Jlabel in the BoggleWindow
+                currentWindow.updateDisplay( "" );
+            }
+            // if the button clicked is adjacent to the last button clicked,
+            // the click is valid so we continue making a word
+            else if ( whichLetter.isAdjacent(lastButtonClicked) ) {
+                // change the color of the button to signal that it has been clicked
+                whichLetter.setForeground( magenta2 );
+
+                // add the letter of the button that was clicked to the wordInProgress
+                wordInProgress = wordInProgress + whichLetter.getText();
+
+                // update lastButtonClicked to be the most recently clicked button
+                lastButtonClicked = whichLetter;
+
+                // update the Jlabel in the BoggleWindow
+                currentWindow.updateDisplay( wordInProgress );
+            }
+        }
+    }
+
+    /*
+     * Disable all letter buttons
+     */
+    public void disableButtons( ) {
+        for ( int x = 0; x < 4; x++ ) {
+            for ( int y = 0; y < 4; y++ ) {
+                board[x][y].setEnabled( false );
+            }
+        }
+    }
+
+    /*
+     * Enable all letter buttons
+     */
+    public void enableButtons( ) {
+        for ( int x = 0; x < 4; x++ ) {
+            for ( int y = 0; y < 4; y++ ) {
+                board[x][y].setEnabled( true );
+            }
+        }
+    }
+
+    /*
+     * Change the letter on a button
+     */
+    public void updateButton( String letter, int x, int y ) {
+        board[x][y].updateText( letter );
+    }
+
+    /*
+     * Reset the board by forgetting all previous information about
+     * the last buttons that were clicked
+     */
+    public void resetBoard( ) {
+        // start a new word by clearing the wordInProgress,
+        // setting the lastButtonClicked to be null, and
+        // forgetting all the previous buttons that have been clicked
+        // (by making the color of all the buttons black)
+        wordInProgress = "";
+        lastButtonClicked = null;
+        for ( int x = 0; x < 4; x++ ) {
+            for ( int y = 0; y < 4; y++ ) {
+                board[x][y].setForeground( Color.black );
+            }
+        }
+    }
+}
