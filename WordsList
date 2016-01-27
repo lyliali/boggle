@@ -1,0 +1,127 @@
+/*
+ * Class WordsList is a recursive list of Strings to keep track of
+ *                 the words a player has found in a game of Boggle.
+ * 
+ * Kate Latimore and Lylia Li, Monday afternoon
+ */
+public class WordsList
+{
+    // boolean that keeps track of whether the list is empty
+    private boolean empty;
+
+    // the first word in the list
+    private String word;
+
+    // the remaining words in the list
+    private WordsList list;
+
+    /*
+     * Constructor for an empty WordsList
+     */
+    public WordsList( ) {
+        empty = true;
+    }
+
+    /*
+     * Constructor for a non-empty WordsList
+     */
+    public WordsList( String a, WordsList b ) {
+        // set parameters equal to instance variables
+        // so they can be used in the methods
+        word = a;
+        list = b;
+
+        // this list is not empty so empty is false
+        empty = false;
+    }
+
+    /*
+     * Returns whether the WordList contains a string
+     */
+    public boolean contains( String lookingFor ) {
+        // if the list is empty it does not contain the string
+        // we are looking for
+        if ( empty )
+            return false;
+        // if the first word in the list is the string we are
+        // looking for, we have found it!
+        else if ( word.equals(lookingFor) )
+            return true;
+        // if the first word is not the string we are looking for
+        // we have to check the rest of the list
+        else
+            return list.contains( lookingFor );
+    }
+
+    /*
+     * Returns all of the words in a WordsList
+     */
+    public String getWords( ) {
+        // if the list is empty we return the empty string
+        if ( empty )
+            return "";
+        // if the list is not empty we return
+        // the first word in the list and
+        // the remaining members of the list
+        else
+            return list.getWords() + "\n" + word;
+    }
+
+    /*
+     * Returns the first word in a WordsList
+     */
+    public String getFirstWord( ) {
+        return word;
+    }
+
+    /*
+     * Returns the rest of the list in a WordsList
+     */
+    public WordsList getRestOfList( ) {
+        return list;
+    }
+
+    /*
+     * Returns true if a WordsList is empty, false if not
+     */
+    public boolean isEmpty( ) { 
+        return empty;
+    }
+
+    /*
+     * Compares two WordsLists and returns the words that aren't in our WordsList
+     */
+    public WordsList compareWords( WordsList otherList ) {
+        WordsList result;
+
+        // if otherList is empty, there is nothing in it that we don't have,
+        // so we return an empty WordsList
+        if ( otherList.isEmpty() ) {
+            result = new WordsList();
+        }
+        // if this list is empty, we don't have any of the words in otherList,
+        // so we return otherList
+        else if ( this.isEmpty() ) {
+            result = otherList;
+        }
+        // neither of the lists are empty
+        else {
+            // get the first word of otherList
+            String a = otherList.getFirstWord();
+
+            // make otherList shorter
+            otherList = otherList.getRestOfList();
+
+            // if we don't have the first word, add it to the result
+            if ( !this.contains(a) ) {
+                result = new WordsList( a, compareWords( otherList ) );
+            }
+            // if we already have the first word, check the rest of the list
+            else {
+                result = compareWords( otherList );
+            }
+        }
+        
+        return result;
+    }
+}
