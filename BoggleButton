@@ -1,0 +1,87 @@
+import squint.*;
+import javax.swing.*;
+
+/*
+ * Class BoggleButton is a special JButton that knows its position and the letter that is on it.
+ * 
+ * Kate Latimore and Lylia Li, Monday afternoon
+ */
+public class BoggleButton extends JButton
+{
+    // ints to keep track of the button's position
+    private int row;
+    private int column;
+
+    // the String that is on the button
+    private String letter;
+
+    /*
+     * Constructor takes parameters for the text that is on the button
+     * and the button's position on the board
+     */
+    public BoggleButton( String anyLetter, int rowPosition, int columnPosition ) {
+        // set parameters to instance variables so they can be remembered
+        letter = anyLetter;
+        row = rowPosition;
+        column = columnPosition;
+
+        // set the text on the button
+        this.setText( letter );
+    }
+
+    /*
+     * Returns true if two BoggleButtons are adjacent, and false if they are not
+     */
+    public boolean isAdjacent( BoggleButton button ) {
+        boolean adjacent;
+
+        // get the positions of the two buttons
+        int row1 = this.getRow();
+        int row2 = button.getRow();
+
+        int column1 = this.getColumn();
+        int column2 = button.getColumn();
+
+        // calculate whether or not they are adjacent by subtracting
+        // the rows and columns of the buttons
+        // be aware that with this definition, a BoggleButton is adjacent to itself
+        if ( ( Math.abs(row1 - row2) == 1 || row1 - row2 == 0 )
+        && ( Math.abs(column1 - column2) == 1 || column1 - column2 == 0 ) )
+            adjacent = true;
+        else adjacent = false;
+
+        return adjacent;
+    }
+
+    /*
+     * Returns the letter on the button
+     */
+    public String getText( ) {
+        return letter;
+    }
+
+    /*
+     * Returns the row
+     */
+    public int getRow( ) {
+        return row;
+    }
+
+    /*
+     * Returns the column
+     */
+    public int getColumn( ) {
+        return column;
+    }
+
+    /*
+     * Changes the letters on the buttons
+     * Use when a new board with new random letters is being generated
+     */
+    public void updateText( String newLetter ) {
+        //
+        letter = newLetter;
+
+        this.setText( newLetter );
+    }
+}
